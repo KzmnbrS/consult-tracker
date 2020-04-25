@@ -122,7 +122,7 @@ class VasyukovObserver(discord.Client):
 
     async def handle_push(self, author, nicknames):
         subscribed_to = []
-        for user in filter(None, map(self.user_from, nicknames)):
+        for user in filter(None, map(self.user_from, set(nicknames))):
             if not self.can_consult(user):
                 continue
 
@@ -142,7 +142,7 @@ class VasyukovObserver(discord.Client):
 
     async def handle_remove(self, author, nicknames):
         unsubscribed_from = []
-        for user in filter(None, map(self.user_from, nicknames)):
+        for user in filter(None, map(self.user_from, set(nicknames))):
             removed = await self.subscribers.remove(author.id, user.id)
             if removed:
                 unsubscribed_from.append(str(user))
