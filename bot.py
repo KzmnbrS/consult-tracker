@@ -51,58 +51,55 @@ class VasyukovObserver(discord.Client):
                 return False
         return True
 
-    HELP = '''Использование: !consultTracker command ...arguments
+    HELP = '''Использование: command ...arguments
     Команды:
-    push nickname ...
+    add nickname ...
         Подписывает вас на указанных _преподавателей_
-        Пример: push c3h6o#7390 Woolfer#1420
+        Пример: add c3h6o#7390 Woolfer#1420
         
-    remove nickname ...
+    del nickname ...
         Отписывает вас от кого вы там хотите
-        Пример: remove c3h6o#7390 Woolfer#1420
+        Пример: del c3h6o#7390 Woolfer#1420
     
     help
         Выводит вот это вот все 
     '''
 
-    READ_HELP = 'Вы неправы. Почитайте хелпарик (!consultTracker help)'
+    READ_HELP = 'Вы неправы. Почитайте хелпарик (help)'
 
     ######################################################################
     # SECTION: Event handlers
 
     async def on_message(self, message):
+        # Fires even for the bot's messages in direct channels
+        if message.author.id == self.user.id:
+            return
+
         async def send_goodbytes():
             await self.send_privately(self.READ_HELP, message.author)
 
-        if not message.content.startswith('!consultTracker'):
-            await send_goodbytes()
-            return
-
         parts = message.content.split()
-        if len(parts) < 2:
-            await send_goodbytes()
-            return
-
-        command, args = parts[1], parts[2:]
-
-        if command == 'push':
+        command, args = parts[0], parts[1:]
+        if command == 'add':
             if not self.validate_args(args, 1):
                 await send_goodbytes()
                 return
 
-            await self.handle_push(message.author, args)
-        elif command == 'remove':
+            await self.handle_add(message.author, args)
+        elif command == 'del':
             if not self.validate_args(args, 1):
                 await send_goodbytes()
                 return
 
-            await self.handle_remove(message.author, args)
+            await self.handle_del(message.author, args)
         elif command == 'help':
             if not self.validate_args(args):
                 await send_goodbytes()
                 return
 
             await self.handle_help(message.author)
+        else:
+            await send_goodbytes()
 
     async def on_voice_state_update(self, user, _, after):
         # !channel.join event
@@ -121,7 +118,7 @@ class VasyukovObserver(discord.Client):
             await self.send_privately(message,
                                       self.user_for(id=subscriber))
 
-    async def handle_push(self, author, nicknames):
+    async def handle_add(self, author, nicknames):
         subscribed_to = []
         for user in filter(None, map(self.user_from, set(nicknames))):
             if not self.can_consult(user):
@@ -141,7 +138,7 @@ class VasyukovObserver(discord.Client):
                                 in subscribed_to)
             await self.send_privately(message, author)
 
-    async def handle_remove(self, author, nicknames):
+    async def handle_del(self, author, nicknames):
         unsubscribed_from = []
         for user in filter(None, map(self.user_from, set(nicknames))):
             removed = await self.subscribers.remove(author.id, user.id)
