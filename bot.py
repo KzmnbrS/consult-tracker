@@ -71,18 +71,19 @@ class VasyukovObserver(discord.Client):
     # SECTION: Event handlers
 
     async def on_message(self, message):
+        async def send_goodbytes():
+            await self.send_privately(self.READ_HELP, message.author)
+
         if not message.content.startswith('!consultTracker'):
+            await send_goodbytes()
             return
 
         parts = message.content.split()
         if len(parts) < 2:
-            await self.send_privately(self.READ_HELP, message.author)
+            await send_goodbytes()
             return
 
         command, args = parts[1], parts[2:]
-
-        async def send_goodbytes():
-            await self.send_privately(self.READ_HELP, message.author)
 
         if command == 'push':
             if not self.validate_args(args, 1):
