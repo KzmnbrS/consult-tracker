@@ -3,12 +3,26 @@ from itertools import filterfalse
 import discord
 import discord.utils
 
+from fuzzywuzzy import process
+
 
 class VasyukovObserver(discord.Client):
 
     def __init__(self, subscribers):
         super().__init__()
+        self.trainer_nicknames = {}
         self.subscribers = subscribers
+
+    async def update_trainer_nicknames(self):
+        self.trainer_nicknames = {}
+        for user in self.get_all_members():
+            if self.can_consult(user):
+                self.trainer_nicknames[str(user)] = user
+
+    on_ready = update_trainer_nicknames
+    on_guild_join = update_trainer_nicknames
+    on_guild_remove = update_trainer_nicknames
+    on_guild_update = update_trainer_nicknames
 
     ######################################################################
     # SECTION: Utility
@@ -16,12 +30,9 @@ class VasyukovObserver(discord.Client):
     def user_for(self, **kwargs):
         return discord.utils.get(self.get_all_members(), **kwargs)
 
-    def user_from(self, nickname):
-        parts = nickname.split('#')
-        if len(parts) != 2:
-            return None
-        return self.user_for(name=parts[0],
-                             discriminator=parts[1])
+    def trainer_like(self, query):
+        key, _ = process.extractOne(query, self.trainer_nicknames.keys())
+        return self.trainer_nicknames[key]
 
     @staticmethod
     def can_consult(user):
@@ -51,17 +62,24 @@ class VasyukovObserver(discord.Client):
                 return False
         return True
 
-    HELP = '''Использование: command ...arguments
-    Команды:
-    add nickname ...
-        Подписывает вас на указанных _преподавателей_
-        Пример: add c3h6o#7390 Woolfer#1420
-        
-    del nickname ...
-        Отписывает вас от кого вы там хотите
-        Пример: del c3h6o#7390 Woolfer#1420
+    HELP = '''Использование: `command ...arguments`
     
-    help
+    О fuzzy аргументах:
+    Обрабатываются не по принципу "равно", но "больше всего похоже".
+    
+    Например: из всех никнеймов на сервере И5, `woolfer` больше всего 
+    похож на `Woolfer#1420`.
+    
+    Команды:
+    `add fuzzy_nickname ...`
+        Подписывает вас на указанных _преподавателей_
+        Пример: `add c3h6o#7390 woolfer`
+        
+    `del fuzzy_nickname ...`
+        Отписывает вас от кого вы там хотите
+        Пример: `del norte clcos`
+    
+    `help`
         Выводит вот это вот все 
     '''
 
@@ -120,7 +138,7 @@ class VasyukovObserver(discord.Client):
 
     async def handle_add(self, author, nicknames):
         subscribed_to = []
-        for user in filter(None, map(self.user_from, set(nicknames))):
+        for user in filter(None, map(self.trainer_like, set(nicknames))):
             if not self.can_consult(user):
                 continue
 
@@ -140,7 +158,7 @@ class VasyukovObserver(discord.Client):
 
     async def handle_del(self, author, nicknames):
         unsubscribed_from = []
-        for user in filter(None, map(self.user_from, set(nicknames))):
+        for user in filter(None, map(self.trainer_like, set(nicknames))):
             removed = await self.subscribers.remove(author.id, user.id)
             if removed:
                 unsubscribed_from.append(str(user))
