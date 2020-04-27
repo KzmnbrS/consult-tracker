@@ -98,7 +98,7 @@ class VasyukovObserver(discord.Client):
             await self.send_privately(self.READ_HELP, message.author)
 
         parts = message.content.split()
-        command, args = parts[0], parts[1:]
+        command, args = parts[0].lower(), parts[1:]
         if command == 'add':
             if not self.validate_args(args, 1):
                 await send_goodbytes()
