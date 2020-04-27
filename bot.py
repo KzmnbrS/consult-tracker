@@ -5,6 +5,7 @@ import discord.utils
 
 from fuzzywuzzy import process
 
+from validate import ValidationError, with_arguments
 from text import *
 
 
@@ -54,16 +55,6 @@ class VasyukovObserver(discord.Client):
             channel = await user.create_dm()
         await channel.send(message)
 
-    @staticmethod
-    def validate_args(args, a=0, b=32, max_length=256):
-        if len(args) < a or len(args) > b:
-            return False
-
-        for arg in args:
-            if len(arg) > max_length:
-                return False
-        return True
-
     ######################################################################
     # SECTION: Event handlers
 
@@ -77,25 +68,17 @@ class VasyukovObserver(discord.Client):
 
         parts = message.content.split()
         command, args = parts[0].lower(), parts[1:]
-        if command == 'add':
-            if not self.validate_args(args, 1):
-                await send_goodbytes()
-                return
 
-            await self.handle_add(message.author, args)
-        elif command == 'del':
-            if not self.validate_args(args, 1):
+        try:
+            if command == 'add':
+                await self.handle_add(message.author, args)
+            elif command == 'del':
+                await self.handle_del(message.author, args)
+            elif command == 'help':
+                await self.handle_help(message.author)
+            else:
                 await send_goodbytes()
-                return
-
-            await self.handle_del(message.author, args)
-        elif command == 'help':
-            if not self.validate_args(args):
-                await send_goodbytes()
-                return
-
-            await self.handle_help(message.author)
-        else:
+        except ValidationError:
             await send_goodbytes()
 
     async def on_voice_state_update(self, user, _, after):
@@ -114,6 +97,7 @@ class VasyukovObserver(discord.Client):
             await self.send_privately(found(user, after.channel),
                                       self.user_for(id=subscriber))
 
+    @with_arguments(a=1)
     async def handle_add(self, author, nicknames):
         subscribed_to = []
         for user in filter(None, map(self.trainer_like, set(nicknames))):
@@ -122,6 +106,7 @@ class VasyukovObserver(discord.Client):
                 subscribed_to.append(str(user))
         await self.send_privately(add_report(subscribed_to), author)
 
+    @with_arguments(a=1)
     async def handle_del(self, author, nicknames):
         unsubscribed_from = []
         for user in filter(None, map(self.trainer_like, set(nicknames))):
