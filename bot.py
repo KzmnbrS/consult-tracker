@@ -5,6 +5,8 @@ import discord.utils
 
 from fuzzywuzzy import process
 
+from text import *
+
 
 class VasyukovObserver(discord.Client):
 
@@ -62,30 +64,6 @@ class VasyukovObserver(discord.Client):
                 return False
         return True
 
-    HELP = '''Оперативно доносит о визитах избранных преподавателей в голосовые консультационные.
-    
-Использование: `command ...arguments`
-Команды регистронезависимы.
-    
-О `fuzzy` аргументах:
-Обрабатываются не по принципу "равно", но "больше всего похоже".
-Например: из всех никнеймов преподавателей на сервере И5, `wolf` больше всего похож на `Woolfer#1420`.
-    
-Команды:
-`add fuzzy_nickname ...`
-    Подписывает вас на указанных _преподавателей_.
-    e.g. `add c3h6o#7390 wolf`
-        
-`del fuzzy_nickname ...`
-    Отписывает вас от кого вы там хотите.
-    e.g. `del norte clcos першин`
-    
-`help`
-    Выводит вот это вот все.
-'''
-
-    READ_HELP = 'Вы неправы. Почитайте хелпарик (help).'
-
     ######################################################################
     # SECTION: Event handlers
 
@@ -95,7 +73,7 @@ class VasyukovObserver(discord.Client):
             return
 
         async def send_goodbytes():
-            await self.send_privately(self.READ_HELP, message.author)
+            await self.send_privately(READ_HELP, message.author)
 
         parts = message.content.split()
         command, args = parts[0].lower(), parts[1:]
@@ -133,29 +111,16 @@ class VasyukovObserver(discord.Client):
 
         subscribers = await self.subscribers.list(user.id)
         for subscriber in subscribers:
-            message = f'{user} замечен в канале `{after.channel.name}`'
-            await self.send_privately(message,
+            await self.send_privately(found(user, after.channel),
                                       self.user_for(id=subscriber))
 
     async def handle_add(self, author, nicknames):
         subscribed_to = []
         for user in filter(None, map(self.trainer_like, set(nicknames))):
-            if not self.can_consult(user):
-                continue
-
             pushed = await self.subscribers.push(author.id, user.id)
             if pushed:
                 subscribed_to.append(str(user))
-
-        if len(subscribed_to) == 0:
-            message = 'Вы либо уже на всех подписаны, ' + \
-                      'либо мы таких не знаем:('
-            await self.send_privately(message, author)
-        else:
-            message = 'Подписали вас на:\n' + \
-                      '\n'.join(f'- {nickname}' for nickname
-                                in subscribed_to)
-            await self.send_privately(message, author)
+        await self.send_privately(add_report(subscribed_to), author)
 
     async def handle_del(self, author, nicknames):
         unsubscribed_from = []
@@ -163,15 +128,7 @@ class VasyukovObserver(discord.Client):
             removed = await self.subscribers.remove(author.id, user.id)
             if removed:
                 unsubscribed_from.append(str(user))
-
-        if not unsubscribed_from:
-            message = 'Вы неправы.'
-            await self.send_privately(message, author)
-        else:
-            message = 'Отписали вас от:\n' + \
-                      '\n'.join(f'- {nickname}' for nickname
-                                in unsubscribed_from)
-            await self.send_privately(message, author)
+        await self.send_privately(del_report(unsubscribed_from), author)
 
     async def handle_help(self, author):
-        await self.send_privately(self.HELP, author)
+        await self.send_privately(HELP, author)
