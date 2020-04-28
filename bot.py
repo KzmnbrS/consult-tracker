@@ -81,9 +81,12 @@ class VasyukovObserver(discord.Client):
         except ValidationError:
             await send_goodbytes()
 
-    async def on_voice_state_update(self, user, _, after):
+    async def on_voice_state_update(self, user, before, after):
         # !channel.join event
         if after.channel is None:
+            return
+
+        if before.channel == after.channel:
             return
 
         if not self.is_consultation_room(after.channel.name):
